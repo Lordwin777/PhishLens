@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhishLens — Phishing URL Detector</title>
+    <link rel="stylesheet" href="/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body class="dark">
+    <div class="container">
+
+        <div class="top-bar">
+            <div class="scan-counter">
+                🔎 URLs scanned this session: <span id="scan-count">0</span>
+            </div>
+            <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">☀️ Light Mode</button>
+        </div>
+
+        <div class="header">
+            <h1>🔍 PhishLens</h1>
+            <p>Detect phishing links instantly using 10 security rules and a database of 293,963 known phishing URLs</p>
+        </div>
+
+        <!-- Mode Tabs -->
+        <div class="mode-tabs">
+            <button class="tab active" id="tab-single" onclick="switchMode('single')">Single URL</button>
+            <button class="tab" id="tab-bulk" onclick="switchMode('bulk')">Bulk Scanner</button>
+        </div>
+
+        <!-- Single URL Mode -->
+        <div id="mode-single">
+            <div class="input-section">
+                <div class="input-wrapper">
+                    <input type="text" id="url-input"
+                        placeholder="Paste a URL here... e.g. https://example.com"
+                        oninput="previewURL()"/>
+                    <button class="copy-btn" onclick="pasteFromClipboard()" title="Paste from clipboard">📋</button>
+                </div>
+                <button id="scan-btn" onclick="scanURL()">🔍 Scan URL</button>
+            </div>
+
+            <!-- URL Preview -->
+            <div id="url-preview" style="display:none;">
+                <div class="preview-grid">
+                    <div class="preview-item">
+                        <span class="preview-label">Protocol</span>
+                        <span id="preview-protocol" class="preview-value">—</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Domain</span>
+                        <span id="preview-domain" class="preview-value">—</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Path</span>
+                        <span id="preview-path" class="preview-value">—</span>
+                    </div>
+                    <div class="preview-item">
+                        <span class="preview-label">Parameters</span>
+                        <span id="preview-params" class="preview-value">—</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scanning Animation -->
+            <div id="scan-animation" style="display:none;">
+                <div class="shield-container">
+                    <div class="shield-spinner">🛡️</div>
+                    <p class="scan-text">Scanning URL...</p>
+                    <div class="progress-bar-wrap">
+                        <div class="progress-bar-fill" id="progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scan History -->
+            <div id="history-section" style="display:none;">
+                <h3 class="history-title">Recent Scans</h3>
+                <div id="history-list"></div>
+            </div>
+
+            <!-- Result -->
+            <div id="result-box" style="display:none;">
+                <div id="verdict-header">
+                    <span id="verdict-icon"></span>
+                    <span id="verdict-text"></span>
+                </div>
+
+                <div class="result-details">
+                    <p><strong>URL:</strong> <span id="result-url"></span></p>
+                    <p><strong>Reason:</strong> <span id="result-reason"></span></p>
+
+                    <div class="risk-row">
+                        <div class="risk-meter">
+                            <svg viewBox="0 0 120 70" class="gauge-svg">
+                                <path d="M10,60 A50,50 0 0,1 110,60" fill="none" stroke="#1e293b" stroke-width="12" stroke-linecap="round"/>
+                                <path id="gauge-fill" d="M10,60 A50,50 0 0,1 110,60" fill="none" stroke="#22c55e" stroke-width="12" stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"/>
+                                <text id="gauge-text" x="60" y="58" text-anchor="middle" font-size="16" font-weight="bold" fill="#f1f5f9">0%</text>
+                                <text x="10" y="72" text-anchor="middle" font-size="8" fill="#64748b">Safe</text>
+                                <text x="110" y="72" text-anchor="middle" font-size="8" fill="#64748b">Phishing</text>
+                            </svg>
+                            <p class="risk-label">Risk Meter</p>
+                        </div>
+                        <div class="confidence-info">
+                            <div class="confidence-section">
+                                <p><strong>Phishing Confidence: <span id="confidence-value"></span>%</strong></p>
+                                <div class="bar-bg">
+                                    <div id="confidence-bar"></div>
+                                </div>
+                            </div>
+                            <div id="blacklist-warning" style="display:none;">
+                                ⚠️ This URL was found in our database of 293,963 known phishing links!
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="breakdown">
+                    <h3>Feature Breakdown</h3>
+                    <div id="feature-list"></div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="reset-btn" onclick="resetScan()">🔄 Scan Another URL</button>
+                    <button class="pdf-btn" onclick="exportPDF()">📄 Export as PDF</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bulk URL Mode -->
+        <div id="mode-bulk" style="display:none;">
+            <div class="bulk-section">
+                <textarea id="bulk-input" placeholder="Paste multiple URLs here, one per line...
+https://google.com
+https://example.com
+http://suspicious-site.com"></textarea>
+                <button id="bulk-btn" onclick="scanBulk()">🔍 Scan All URLs</button>
+            </div>
+
+            <!-- Bulk Animation -->
+            <div id="bulk-animation" style="display:none;">
+                <div class="shield-container">
+                    <div class="shield-spinner">🛡️</div>
+                    <p class="scan-text" id="bulk-progress-text">Scanning URLs...</p>
+                    <div class="progress-bar-wrap">
+                        <div class="progress-bar-fill" id="bulk-progress-fill"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bulk Results Table -->
+            <div id="bulk-results" style="display:none;">
+                <div class="bulk-summary" id="bulk-summary"></div>
+                <div class="bulk-table-wrap">
+                    <table class="bulk-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>URL</th>
+                                <th>Verdict</th>
+                                <th>Confidence</th>
+                                <th>Reason</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bulk-table-body"></tbody>
+                    </table>
+                </div>
+                <button class="reset-btn" style="margin-top:16px;" onclick="resetBulk()">🔄 Scan New Batch</button>
+            </div>
+        </div>
+
+    </div>
+    <script src="/script.js"></script>
+</body>
+</html>
